@@ -1,0 +1,30 @@
+# OS generated
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Node
+node_modules/
+dist/
+
+# Android
+.gradle/
+local.properties
+/build/
+
+# Databases & local storage
+*.db
+*.sqlite3
+storage/content/*
+!storage/content/.gitkeep
+
+# IDEs
+.idea/
+.vscode/
+*.swp

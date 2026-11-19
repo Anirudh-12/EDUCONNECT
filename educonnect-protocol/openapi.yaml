@@ -1,0 +1,177 @@
+openapi: 3.1.0
+info:
+  title: EDUCONNECT School Server API
+  version: 1.0.0
+  description: Authoritative local API for student clients, web admin, and sync transport.
+servers:
+  - url: /api/v1
+    description: Local school server API base path
+
+paths:
+  /health:
+    get:
+      summary: Server health check
+      operationId: getHealth
+      responses:
+        '200':
+          description: Server status and hardware metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  school_server: { type: object }
+
+  /auth/login:
+    post:
+      summary: User login
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [school_id, username, password]
+              properties:
+                school_id: { type: string, format: uuid }
+                username: { type: string }
+                password: { type: string }
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token: { type: string }
+                  refresh_token: { type: string }
+                  token_type: { type: string }
+                  expires_in: { type: integer }
+
+  /devices/register:
+    post:
+      summary: Register student device
+      operationId: registerDevice
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [device_id, device_name, platform, app_version, protocol_version, credential_hash]
+              properties:
+                device_id: { type: string, format: uuid }
+                device_name: { type: string }
+                platform: { type: string }
+                app_version: { type: string }
+                protocol_version: { type: integer }
+                credential_hash: { type: string }
+      responses:
+        '201':
+          description: Device registered successfully
+
+  /courses:
+    get:
+      summary: List enrolled courses
+      operationId: listCourses
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of courses
+
+  /content/manifest:
+    get:
+      summary: Content download manifest
+      operationId: getContentManifest
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Verified content manifest
+          content:
+            application/json:
+              schema:
+                $ref: './schemas/content_manifest.json'
+
+  /content/{content_id}/download:
+    get:
+      summary: Download content binary with Range support
+      operationId: downloadContent
+      parameters:
+        - name: content_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Full content stream
+        '206':
+          description: Partial content range
+
+  /sync/v1/events:
+    post:
+      summary: Submit offline event batch
+      operationId: ingestSyncEvents
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [protocol_version, device_id, batch_id, events]
+              properties:
+                protocol_version: { type: integer }
+                device_id: { type: string, format: uuid }
+                batch_id: { type: string, format: uuid }
+                events:
+                  type: array
+                  items:
+                    $ref: './schemas/sync_event.json'
+      responses:
+        '200':
+          description: Batch ingestion result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  batch_id: { type: string }
+                  protocol_version: { type: integer }
+                  acknowledged:
+                    type: array
+                    items: { type: string, format: uuid }
+                  duplicates:
+                    type: array
+                    items: { type: string, format: uuid }
+                  rejected:
+                    type: array
+                    items: { type: string, format: uuid }
+                  requires_review:
+                    type: array
+                    items: { type: string, format: uuid }
+                  server_cursor: { type: string }
+
+  /sync/v1/status:
+    get:
+      summary: Sync status check
+      operationId: getSyncStatus
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Current sync status
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

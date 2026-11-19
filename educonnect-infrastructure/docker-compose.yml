@@ -1,0 +1,31 @@
+services:
+  educonnect-api:
+    build:
+      context: ../educonnect-server
+      dockerfile: ../educonnect-infrastructure/docker/Dockerfile.api
+    container_name: educonnect-api
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      - educonnect_data:/app/data
+      - educonnect_storage:/app/storage/content
+    environment:
+      - DATABASE_URL=sqlite:////app/data/educonnect.db
+      - CONTENT_STORAGE_DIR=/app/storage/content
+      - SECRET_KEY=offline-school-insecure-secret-change-in-production
+
+  educonnect-admin:
+    build:
+      context: ../educonnect-admin
+      dockerfile: ../educonnect-infrastructure/docker/Dockerfile.admin
+    container_name: educonnect-admin
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - educonnect-api
+
+volumes:
+  educonnect_data:
+  educonnect_storage:

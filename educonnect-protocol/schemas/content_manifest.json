@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://educonnect.local/schemas/content_manifest.json",
+  "title": "ContentManifest",
+  "description": "Content manifest for verifiable offline resource downloads",
+  "type": "object",
+  "required": [
+    "school_id",
+    "generated_at",
+    "items"
+  ],
+  "properties": {
+    "school_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "content_id",
+          "version_id",
+          "filename",
+          "mime_type",
+          "size_bytes",
+          "sha256",
+          "download_path"
+        ],
+        "properties": {
+          "content_id": { "type": "string", "format": "uuid" },
+          "version_id": { "type": "string", "format": "uuid" },
+          "filename": { "type": "string" },
+          "mime_type": { "type": "string" },
+          "size_bytes": { "type": "integer", "minimum": 0 },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "download_path": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

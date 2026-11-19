@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://educonnect.local/schemas/sync_event.json",
+  "title": "SyncEvent",
+  "description": "Standard event envelope for EDUCONNECT synchronization events",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "schema_version",
+    "school_id",
+    "user_id",
+    "device_id",
+    "entity_type",
+    "entity_id",
+    "device_sequence",
+    "occurred_at",
+    "recorded_at",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Globally unique event identifier (UUIDv7 recommended)"
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "lesson.started",
+        "lesson.progress_updated",
+        "lesson.completed",
+        "content.bookmarked",
+        "note.created",
+        "note.updated",
+        "assessment.started",
+        "assessment.answer_saved",
+        "assessment.submitted",
+        "assignment.received",
+        "assignment.submitted",
+        "device.registered",
+        "device.last_seen",
+        "content.downloaded",
+        "content.verified"
+      ],
+      "description": "Type of event operation"
+    },
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Event schema version"
+    },
+    "school_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "ID of the school server"
+    },
+    "user_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "ID of user performing the action"
+    },
+    "device_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Originating device ID"
+    },
+    "entity_type": {
+      "type": "string",
+      "enum": [
+        "lesson",
+        "course",
+        "assessment",
+        "assignment",
+        "content",
+        "note",
+        "device"
+      ],
+      "description": "Target entity category"
+    },
+    "entity_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Target entity identifier"
+    },
+    "device_sequence": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Monotonically increasing sequence number per device"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Device-reported UTC timestamp when action happened"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Device UTC timestamp when event was locally queued"
+    },
+    "payload": {
+      "type": "object",
+      "description": "Event-specific operational payload",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}
