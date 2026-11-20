@@ -1,20 +1,21 @@
 import shutil
-from datetime import datetime, timezone
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, HTTPException, status
-from fastapi.responses import JSONResponse
+from datetime import UTC, datetime
+
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.core.config import settings
 from app.core.database import init_db
 from app.db.seed import seed_data
-from app.modules.identity.router import auth_router, device_router
-from app.modules.learning.router import learning_router
-from app.modules.content.router import content_router
-from app.modules.sync.router import sync_router
 from app.modules.assessment.router import assessment_router
 from app.modules.classroom.router import classroom_router
+from app.modules.content.router import content_router
+from app.modules.identity.router import auth_router, device_router
+from app.modules.learning.router import learning_router
+from app.modules.sync.router import sync_router
 
 
 @asynccontextmanager
@@ -37,7 +38,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -77,7 +78,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
                 "code": error_code,
                 "message": raw_message,
                 "details": {},
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
             "detail": raw_message,
         },
@@ -93,7 +94,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
                 "code": "VALIDATION_FAILED",
                 "message": "Payload schema validation failed.",
                 "details": exc.errors(),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
             "detail": exc.errors(),
         },

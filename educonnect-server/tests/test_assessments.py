@@ -1,13 +1,16 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 def _get_student_token(client):
-    login_res = client.post("/api/v1/auth/login", json={
-        "school_id": "0194c7b0-0000-7000-8000-000000000001",
-        "username": "student1",
-        "password": "learn123"
-    })
+    login_res = client.post(
+        "/api/v1/auth/login",
+        json={
+            "school_id": "0194c7b0-0000-7000-8000-000000000001",
+            "username": "student1",
+            "password": "learn123",
+        },
+    )
     return login_res.json()["access_token"]
 
 
@@ -38,22 +41,21 @@ def test_submit_assessment_attempt(client):
     question_id = "0194c7b0-9200-7000-8000-000000000001"
 
     attempt_id = str(uuid.uuid4())
-    now_str = datetime.now(timezone.utc).isoformat()
+    now_str = datetime.now(UTC).isoformat()
 
     submit_payload = {
         "attempt_id": attempt_id,
         "device_id": "0194c7b0-2000-7000-8000-000000000001",
         "started_at": now_str,
         "submitted_at": now_str,
-        "answers": [
-            {
-                "question_id": question_id,
-                "answer_json": "3/4"
-            }
-        ]
+        "answers": [{"question_id": question_id, "answer_json": "3/4"}],
     }
 
-    res = client.post(f"/api/v1/assessments/{assessment_id}/attempts", headers=headers, json=submit_payload)
+    res = client.post(
+        f"/api/v1/assessments/{assessment_id}/attempts",
+        headers=headers,
+        json=submit_payload,
+    )
     assert res.status_code == 201
     data = res.json()
     assert data["attempt_id"] == attempt_id
@@ -63,8 +65,97 @@ def test_submit_assessment_attempt(client):
     assert data["grading_status"] == "automatic"
 
     # Test idempotency: re-submit same attempt_id returns identical result
-    res_dup = client.post(f"/api/v1/assessments/{assessment_id}/attempts", headers=headers, json=submit_payload)
+    res_dup = client.post(
+        f"/api/v1/assessments/{assessment_id}/attempts",
+        headers=headers,
+        json=submit_payload,
+    )
     assert res_dup.status_code in (200, 201)
     data_dup = res_dup.json()
     assert data_dup["attempt_id"] == attempt_id
     assert data_dup["score"] == 10.0
+
+
+def test_submit_assessment_duplicate_answers_no_inflation(client):
+    token = _get_student_token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    assessment_id = "0194c7b0-9100-7000-8000-000000000001"
+    question_id = "0194c7b0-9200-7000-8000-000000000001"
+
+    attempt_id = str(uuid.uuid4())
+    now_str = datetime.now(UTC).isoformat()
+
+    # Submit with duplicate answer entries for the same question
+    submit_payload = {
+        "attempt_id": attempt_id,
+        "device_id": "0194c7b0-2000-7000-8000-000000000001",
+        "started_at": now_str,
+        "submitted_at": now_str,
+        "answers": [
+            {"question_id": question_id, "answer_json": "3/4"},
+            {"question_id": question_id, "answer_json": "3/4"},
+            {"question_id": question_id, "answer_json": "3/4"},
+        ],
+    }
+
+    res = client.post(
+        f"/api/v1/assessments/{assessment_id}/attempts",
+        headers=headers,
+        json=submit_payload,
+    )
+    assert res.status_code == 201
+    data = res.json()
+    # Score must be capped to question marks (10.0), not inflated to 30.0
+    assert data["score"] == 10.0
+    assert data["maximum_score"] == 10.0
+
+
+def test_submit_assessment_attempt_limit_enforced(client):
+    token = _get_student_token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    assessment_id = "0194c7b0-9100-7000-8000-000000000001"
+    question_id = "0194c7b0-9200-7000-8000-000000000001"
+    now_str = datetime.now(UTC).isoformat()
+
+    # Attempt 1 -> allowed
+    res1 = client.post(
+        f"/api/v1/assessments/{assessment_id}/attempts",
+        headers=headers,
+        json={
+            "attempt_id": str(uuid.uuid4()),
+            "device_id": "0194c7b0-2000-7000-8000-000000000001",
+            "started_at": now_str,
+            "submitted_at": now_str,
+            "answers": [{"question_id": question_id, "answer_json": "3/4"}],
+        },
+    )
+    assert res1.status_code == 201
+
+    # Attempt 2 -> allowed (attempts_allowed = 2)
+    res2 = client.post(
+        f"/api/v1/assessments/{assessment_id}/attempts",
+        headers=headers,
+        json={
+            "attempt_id": str(uuid.uuid4()),
+            "device_id": "0194c7b0-2000-7000-8000-000000000001",
+            "started_at": now_str,
+            "submitted_at": now_str,
+            "answers": [{"question_id": question_id, "answer_json": "3/4"}],
+        },
+    )
+    assert res2.status_code == 201
+
+    # Attempt 3 -> blocked by limit
+    res3 = client.post(
+        f"/api/v1/assessments/{assessment_id}/attempts",
+        headers=headers,
+        json={
+            "attempt_id": str(uuid.uuid4()),
+            "device_id": "0194c7b0-2000-7000-8000-000000000001",
+            "started_at": now_str,
+            "submitted_at": now_str,
+            "answers": [{"question_id": question_id, "answer_json": "3/4"}],
+        },
+    )
+    assert res3.status_code == 403
+    assert "Maximum attempts limit reached" in res3.json()["detail"]

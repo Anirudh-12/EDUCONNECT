@@ -1,6 +1,7 @@
 from datetime import datetime
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field, ConfigDict
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class SyncEventSchema(BaseModel):
@@ -15,23 +16,23 @@ class SyncEventSchema(BaseModel):
     device_sequence: int
     occurred_at: datetime
     recorded_at: datetime
-    payload: Dict[str, Any] = Field(default_factory=dict)
+    payload: dict[str, Any] = Field(default_factory=dict)
 
 
 class SyncBatchRequest(BaseModel):
     protocol_version: int = 1
     device_id: str
     batch_id: str
-    events: List[SyncEventSchema]
+    events: list[SyncEventSchema]
 
 
 class SyncBatchResponse(BaseModel):
     batch_id: str
     protocol_version: int = 1
-    acknowledged: List[str] = Field(default_factory=list)
-    duplicates: List[str] = Field(default_factory=list)
-    rejected: List[str] = Field(default_factory=list)
-    requires_review: List[str] = Field(default_factory=list)
+    acknowledged: list[str] = Field(default_factory=list)
+    duplicates: list[str] = Field(default_factory=list)
+    rejected: list[str] = Field(default_factory=list)
+    requires_review: list[str] = Field(default_factory=list)
     server_cursor: str
 
 
@@ -48,13 +49,13 @@ class ChangeItem(BaseModel):
 class SyncChangesResponse(BaseModel):
     server_cursor: str
     has_more: bool = False
-    changes: List[ChangeItem]
+    changes: list[ChangeItem]
 
 
 class SyncStatusResponse(BaseModel):
     protocol_version: int = 1
     server_time: datetime
     device_id: str
-    last_sync_at: Optional[datetime] = None
+    last_sync_at: datetime | None = None
     last_processed_sequence: int = 0
     server_cursor: str

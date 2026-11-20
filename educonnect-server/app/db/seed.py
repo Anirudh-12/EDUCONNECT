@@ -1,17 +1,17 @@
 import hashlib
-from datetime import datetime, timezone
-from pathlib import Path
+from datetime import UTC, datetime
+
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import SessionLocal, init_db
 from app.core.security import hash_password
-from app.models.school import School
-from app.models.identity import User, Device
-from app.models.classroom import Classroom, ClassroomMembership
-from app.models.course import Course, CourseEnrollment, Lesson, LessonContent
-from app.models.content import Content, ContentVersion
 from app.models.assessment import Assessment, Question
+from app.models.classroom import Classroom, ClassroomMembership
+from app.models.content import Content, ContentVersion
+from app.models.course import Course, CourseEnrollment, Lesson, LessonContent
+from app.models.identity import Device, User
+from app.models.school import School
 from app.models.sync import DeviceSyncState, ServerChangeLog
 
 
@@ -22,7 +22,7 @@ def seed_data(db: Session = None):
         close_at_end = True
 
     try:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         school_id = settings.DEFAULT_SCHOOL_ID
 
         # 1. School
@@ -35,7 +35,7 @@ def seed_data(db: Session = None):
                 address="District 1, Rural Region",
                 timezone="UTC",
                 preferred_language="en",
-                settings_json={"offline_mode": True, "sync_enabled": True}
+                settings_json={"offline_mode": True, "sync_enabled": True},
             )
             db.add(school)
             db.flush()
@@ -54,7 +54,7 @@ def seed_data(db: Session = None):
                 first_name="System",
                 last_name="Admin",
                 role="admin",
-                status="active"
+                status="active",
             )
             db.add(admin)
 
@@ -71,7 +71,7 @@ def seed_data(db: Session = None):
                 first_name="Sarah",
                 last_name="Connor",
                 role="teacher",
-                status="active"
+                status="active",
             )
             db.add(teacher)
 
@@ -88,7 +88,7 @@ def seed_data(db: Session = None):
                 first_name="Jane",
                 last_name="Doe",
                 role="student",
-                status="active"
+                status="active",
             )
             db.add(student)
 
@@ -109,18 +109,22 @@ def seed_data(db: Session = None):
                 credential_hash="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
                 status="active",
                 registered_at=now,
-                last_seen_at=now
+                last_seen_at=now,
             )
             db.add(device)
 
-        sync_state = db.query(DeviceSyncState).filter(DeviceSyncState.device_id == device_id).first()
+        sync_state = (
+            db.query(DeviceSyncState)
+            .filter(DeviceSyncState.device_id == device_id)
+            .first()
+        )
         if not sync_state:
             sync_state = DeviceSyncState(
                 school_id=school_id,
                 device_id=device_id,
                 last_received_sequence=0,
                 status="active",
-                last_sync_at=now
+                last_sync_at=now,
             )
             db.add(sync_state)
 
@@ -137,24 +141,28 @@ def seed_data(db: Session = None):
                 grade_level="7",
                 section="A",
                 academic_year="2026-2027",
-                status="active"
+                status="active",
             )
             db.add(classroom)
             db.flush()
 
             # Memberships
-            db.add(ClassroomMembership(
-                school_id=school_id,
-                classroom_id=classroom_id,
-                user_id=teacher_id,
-                membership_role="teacher"
-            ))
-            db.add(ClassroomMembership(
-                school_id=school_id,
-                classroom_id=classroom_id,
-                user_id=student_id,
-                membership_role="student"
-            ))
+            db.add(
+                ClassroomMembership(
+                    school_id=school_id,
+                    classroom_id=classroom_id,
+                    user_id=teacher_id,
+                    membership_role="teacher",
+                )
+            )
+            db.add(
+                ClassroomMembership(
+                    school_id=school_id,
+                    classroom_id=classroom_id,
+                    user_id=student_id,
+                    membership_role="student",
+                )
+            )
 
         # 5. Content file on disk
         storage_dir = settings.CONTENT_STORAGE_DIR
@@ -179,13 +187,15 @@ def seed_data(db: Session = None):
                 subject="Mathematics",
                 grade_level="7",
                 status="published",
-                created_by=teacher_id
+                created_by=teacher_id,
             )
             db.add(content)
             db.flush()
 
         version_id = "0194c7b0-5100-7000-8000-000000000001"
-        version = db.query(ContentVersion).filter(ContentVersion.id == version_id).first()
+        version = (
+            db.query(ContentVersion).filter(ContentVersion.id == version_id).first()
+        )
         if not version:
             version = ContentVersion(
                 id=version_id,
@@ -196,7 +206,7 @@ def seed_data(db: Session = None):
                 storage_path=str(sample_file),
                 file_size_bytes=file_size,
                 mime_type="application/pdf",
-                published_at=now
+                published_at=now,
             )
             db.add(version)
 
@@ -215,18 +225,20 @@ def seed_data(db: Session = None):
                 thumbnail_content_id=content_id,
                 status="published",
                 created_by=teacher_id,
-                published_at=now
+                published_at=now,
             )
             db.add(course)
             db.flush()
 
             # Course Enrollment
-            db.add(CourseEnrollment(
-                school_id=school_id,
-                course_id=course_id,
-                user_id=student_id,
-                status="active"
-            ))
+            db.add(
+                CourseEnrollment(
+                    school_id=school_id,
+                    course_id=course_id,
+                    user_id=student_id,
+                    status="active",
+                )
+            )
 
         lesson_id = "0194c7b0-3100-7000-8000-000000000001"
         lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
@@ -240,19 +252,21 @@ def seed_data(db: Session = None):
                 lesson_type="document",
                 sequence_number=1,
                 estimated_duration=1800,
-                status="published"
+                status="published",
             )
             db.add(lesson)
             db.flush()
 
             # Lesson Content Mapping
-            db.add(LessonContent(
-                school_id=school_id,
-                lesson_id=lesson_id,
-                content_id=content_id,
-                sequence_number=1,
-                is_required=True
-            ))
+            db.add(
+                LessonContent(
+                    school_id=school_id,
+                    lesson_id=lesson_id,
+                    content_id=content_id,
+                    sequence_number=1,
+                    is_required=True,
+                )
+            )
 
         # 7. Assessment
         assessment_id = "0194c7b0-9100-7000-8000-000000000001"
@@ -270,7 +284,7 @@ def seed_data(db: Session = None):
                 time_limit_seconds=900,
                 attempts_allowed=2,
                 status="published",
-                created_by=teacher_id
+                created_by=teacher_id,
             )
             db.add(assessment)
             db.flush()
@@ -286,23 +300,31 @@ def seed_data(db: Session = None):
                 correct_answer_json="3/4",
                 marks=10.0,
                 sequence_number=1,
-                explanation="1/2 is equivalent to 2/4. 2/4 + 1/4 = 3/4."
+                explanation="1/2 is equivalent to 2/4. 2/4 + 1/4 = 3/4.",
             )
             db.add(question)
 
         # 8. Initial Server Change Log Entry
-        log = db.query(ServerChangeLog).filter(ServerChangeLog.entity_id == course_id).first()
+        log = (
+            db.query(ServerChangeLog)
+            .filter(ServerChangeLog.entity_id == course_id)
+            .first()
+        )
         if not log:
-            db.add(ServerChangeLog(
-                school_id=school_id,
-                entity_type="course",
-                entity_id=course_id,
-                change_type="created",
-                version=1
-            ))
+            db.add(
+                ServerChangeLog(
+                    school_id=school_id,
+                    entity_type="course",
+                    entity_id=course_id,
+                    change_type="created",
+                    version=1,
+                )
+            )
 
         db.commit()
-        print("Database seeded successfully with default school, users, courses, content, and assessments.")
+        print(
+            "Database seeded successfully with default school, users, courses, content, and assessments."
+        )
     except Exception as e:
         db.rollback()
         raise e

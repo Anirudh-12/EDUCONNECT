@@ -1,11 +1,13 @@
 import uuid
-from datetime import datetime, timezone
-from sqlalchemy import Column, String, DateTime, JSON
+from datetime import UTC, datetime
+
+from sqlalchemy import JSON, Column, DateTime, String
+
 from app.core.database import Base
 
 
 def utc_now():
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class School(Base):
@@ -19,4 +21,6 @@ class School(Base):
     preferred_language = Column(String(10), default="en", nullable=False)
     settings_json = Column(JSON, default=dict, nullable=False)
     created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
-    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
+    )

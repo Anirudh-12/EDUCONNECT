@@ -1,31 +1,38 @@
 import hashlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional, Tuple
-from sqlalchemy.orm import Session
+
 from fastapi import HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import settings
 from app.models.content import Content, ContentVersion
 from app.models.sync import ServerChangeLog
-from app.modules.content.schemas import ContentManifestResponse, ManifestItem, ContentUploadResponse
+from app.modules.content.schemas import (
+    ContentManifestResponse,
+    ContentUploadResponse,
+    ManifestItem,
+)
 
 
 def get_manifest(db: Session, school_id: str) -> ContentManifestResponse:
-    contents = db.query(Content).filter(
-        Content.school_id == school_id,
-        Content.status == "published"
-    ).all()
+    contents = (
+        db.execute(
+            select(Content)
+            .options(selectinload(Content.versions))
+            .where(Content.school_id == school_id, Content.status == "published")
+        )
+        .scalars()
+        .all()
+    )
 
     items = []
     for c in contents:
-        # Latest version
-        version = db.query(ContentVersion).filter(
-            ContentVersion.content_id == c.id
-        ).order_by(ContentVersion.version_number.desc()).first()
-        if not version:
+        if not c.versions:
             continue
-
+        # Versions are ordered by version_number desc in relationship definition
+        version = c.versions[0]
         filename = Path(version.storage_path).name
         items.append(
             ManifestItem(
@@ -35,53 +42,75 @@ def get_manifest(db: Session, school_id: str) -> ContentManifestResponse:
                 mime_type=version.mime_type or c.mime_type,
                 size_bytes=version.file_size_bytes,
                 sha256=version.sha256,
-                download_path=f"{settings.API_V1_PREFIX}/content/{c.id}/download"
+                download_path=f"{settings.API_V1_PREFIX}/content/{c.id}/download",
             )
         )
 
     return ContentManifestResponse(
         school_id=school_id,
-        generated_at=datetime.now(timezone.utc),
-        items=items
+        generated_at=datetime.now(UTC),
+        items=items,
     )
 
 
-def get_content_file(db: Session, school_id: str, content_id: str) -> Tuple[Path, ContentVersion, Content]:
-    content = db.query(Content).filter(
-        Content.id == content_id,
-        Content.school_id == school_id
-    ).first()
+def get_content_with_latest_version(
+    db: Session, school_id: str, content_id: str
+) -> tuple[Content, ContentVersion]:
+    content = db.execute(
+        select(Content)
+        .options(selectinload(Content.versions))
+        .where(Content.id == content_id, Content.school_id == school_id)
+    ).scalar_one_or_none()
+
     if not content:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="RESOURCE_NOT_FOUND: The requested content resource does not exist."
+            detail="RESOURCE_NOT_FOUND: Content not found",
         )
-
-    version = db.query(ContentVersion).filter(
-        ContentVersion.content_id == content.id
-    ).order_by(ContentVersion.version_number.desc()).first()
-    if not version:
+    if not content.versions:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="RESOURCE_NOT_FOUND: No published content version found."
+            detail="RESOURCE_NOT_FOUND: No content version found",
         )
+    return content, content.versions[0]
 
+
+def get_content_file(
+    db: Session, school_id: str, content_id: str
+) -> tuple[Path, ContentVersion, Content]:
+    content, version = get_content_with_latest_version(db, school_id, content_id)
+
+    storage_root = settings.CONTENT_STORAGE_DIR.resolve()
     file_path = Path(version.storage_path)
     if not file_path.is_absolute():
-        # Check if relative to cwd or CONTENT_STORAGE_DIR
-        candidate1 = Path.cwd() / file_path
-        candidate2 = settings.CONTENT_STORAGE_DIR / file_path
-        if candidate1.exists():
+        candidate1 = (Path.cwd() / file_path).resolve()
+        candidate2 = (settings.CONTENT_STORAGE_DIR / file_path).resolve()
+        candidate3 = (settings.CONTENT_STORAGE_DIR / file_path.name).resolve()
+        if candidate3.exists():
+            file_path = candidate3
+        elif candidate1.exists():
             file_path = candidate1
         elif candidate2.exists():
             file_path = candidate2
         else:
-            file_path = settings.CONTENT_STORAGE_DIR / file_path.name
+            file_path = candidate3
+    else:
+        file_path = file_path.resolve()
+
+    # Enforce safe directory boundary
+    if not (
+        file_path.is_relative_to(storage_root)
+        or file_path.is_relative_to(Path.cwd().resolve())
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="PERMISSION_DENIED: Access outside storage directory forbidden",
+        )
 
     if not file_path.exists():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"RESOURCE_NOT_FOUND: Content binary file not found on server storage: {file_path.name}"
+            detail=f"RESOURCE_NOT_FOUND: Content binary file not found on server storage: {file_path.name}",
         )
 
     return file_path, version, content
@@ -94,8 +123,8 @@ def save_content(
     file_bytes: bytes,
     filename: str,
     mime_type: str,
-    title: Optional[str] = None,
-    content_type: str = "pdf"
+    title: str | None = None,
+    content_type: str = "pdf",
 ) -> ContentUploadResponse:
     sha256_hash = hashlib.sha256(file_bytes).hexdigest()
     file_size = len(file_bytes)
@@ -118,7 +147,7 @@ def save_content(
         mime_type=mime_type,
         language="en",
         status="published",
-        created_by=user_id
+        created_by=user_id,
     )
     db.add(content)
     db.flush()
@@ -132,7 +161,7 @@ def save_content(
         storage_path=rel_storage_path,
         file_size_bytes=file_size,
         mime_type=mime_type,
-        published_at=datetime.now(timezone.utc)
+        published_at=datetime.now(UTC),
     )
     db.add(version)
 
@@ -142,7 +171,7 @@ def save_content(
         entity_type="content",
         entity_id=content.id,
         change_type="created",
-        version=1
+        version=1,
     )
     db.add(change_log)
 
@@ -158,5 +187,5 @@ def save_content(
         mime_type=mime_type,
         file_size_bytes=file_size,
         sha256=sha256_hash,
-        download_path=f"{settings.API_V1_PREFIX}/content/{content.id}/download"
+        download_path=f"{settings.API_V1_PREFIX}/content/{content.id}/download",
     )

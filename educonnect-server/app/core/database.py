@@ -1,7 +1,9 @@
 import sqlite3
+
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import declarative_base, sessionmaker
+
 from app.core.config import settings
 
 connect_args = {"check_same_thread": False} if "sqlite" in settings.DATABASE_URL else {}
@@ -31,6 +33,5 @@ def get_db():
 
 
 def init_db():
-    import app.models  # ensure all models are registered
 
     Base.metadata.create_all(bind=engine)

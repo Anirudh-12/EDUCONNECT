@@ -1,13 +1,14 @@
 from datetime import datetime
-from typing import List, Optional, Any
-from pydantic import BaseModel, Field, ConfigDict
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict
 
 
 class QuestionStudentView(BaseModel):
     id: str
     question_type: str
     question_text: str
-    options_json: Optional[Any] = None
+    options_json: Any | None = None
     marks: float
     sequence_number: int
 
@@ -17,9 +18,9 @@ class QuestionStudentView(BaseModel):
 class AssessmentStudentView(BaseModel):
     id: str
     title: str
-    time_limit_seconds: Optional[int] = None
+    time_limit_seconds: int | None = None
     total_marks: float
-    questions: List[QuestionStudentView]
+    questions: list[QuestionStudentView]
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -34,7 +35,7 @@ class AttemptSubmitRequest(BaseModel):
     device_id: str
     started_at: datetime
     submitted_at: datetime
-    answers: List[AnswerSubmission]
+    answers: list[AnswerSubmission]
 
 
 class AttemptSubmitResponse(BaseModel):

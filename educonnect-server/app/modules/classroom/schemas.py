@@ -1,13 +1,29 @@
 from datetime import datetime
-from typing import List, Optional
+
 from pydantic import BaseModel, ConfigDict
 
 
 class ClassroomCreate(BaseModel):
     name: str
     grade_level: str
-    section: Optional[str] = None
+    section: str | None = None
     academic_year: str
+
+
+class ClassroomUpdate(BaseModel):
+    name: str | None = None
+    grade_level: str | None = None
+    section: str | None = None
+    academic_year: str | None = None
+    status: str | None = None
+
+
+class ClassroomUpdate(BaseModel):
+    name: Optional[str] = None
+    grade_level: Optional[str] = None
+    section: Optional[str] = None
+    academic_year: Optional[str] = None
+    status: Optional[str] = None
 
 
 class ClassroomResponse(BaseModel):
@@ -15,7 +31,7 @@ class ClassroomResponse(BaseModel):
     school_id: str
     name: str
     grade_level: str
-    section: Optional[str] = None
+    section: str | None = None
     academic_year: str
     status: str
     created_at: datetime

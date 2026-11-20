@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -18,7 +18,7 @@ class ManifestItem(BaseModel):
 class ContentManifestResponse(BaseModel):
     school_id: str
     generated_at: datetime
-    items: List[ManifestItem]
+    items: list[ManifestItem]
 
 
 class ContentUploadResponse(BaseModel):
