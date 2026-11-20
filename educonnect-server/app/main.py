@@ -31,7 +31,7 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url=f"{settings.API_V1_PREFIX}/openapi.json",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -62,7 +62,11 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     if ":" in raw_message:
         prefix, rest = raw_message.split(":", 1)
         prefix_clean = prefix.strip()
-        if prefix_clean.isupper() and "_" in prefix_clean or prefix_clean in code_map.values():
+        if (
+            prefix_clean.isupper()
+            and "_" in prefix_clean
+            or prefix_clean in code_map.values()
+        ):
             error_code = prefix_clean
             raw_message = rest.strip()
 
@@ -73,10 +77,10 @@ async def http_exception_handler(request: Request, exc: HTTPException):
                 "code": error_code,
                 "message": raw_message,
                 "details": {},
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             },
-            "detail": raw_message
-        }
+            "detail": raw_message,
+        },
     )
 
 
@@ -89,10 +93,10 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
                 "code": "VALIDATION_FAILED",
                 "message": "Payload schema validation failed.",
                 "details": exc.errors(),
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             },
-            "detail": exc.errors()
-        }
+            "detail": exc.errors(),
+        },
     )
 
 
@@ -121,15 +125,11 @@ def health_check():
             "database": "sqlite_connected",
             "storage_free_bytes": free_bytes,
             "active_clients_est": 1,
-            "mode": "offline-local"
-        }
+            "mode": "offline-local",
+        },
     }
 
 
 @app.get("/", tags=["Root"])
 def root():
-    return {
-        "name": settings.PROJECT_NAME,
-        "status": "running",
-        "docs": "/docs"
-    }
+    return {"name": settings.PROJECT_NAME, "status": "running", "docs": "/docs"}

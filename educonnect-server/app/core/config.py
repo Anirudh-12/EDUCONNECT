@@ -13,10 +13,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
     DEFAULT_SCHOOL_ID: str = "0194c7b0-0000-7000-8000-000000000001"
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        extra="allow"
-    )
+    model_config = SettingsConfigDict(env_file=".env", extra="allow")
 
 
 settings = Settings()
